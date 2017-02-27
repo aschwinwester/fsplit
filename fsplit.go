@@ -1,23 +1,21 @@
 package main
 
 import (
+	"flag"
 	"github.com/aschwinwester/fsplit/split"
-	"fmt"
-	"os"
+	"log"
 )
 
 func main() {
 
-
 	options := split.GetOptions()
 
-	if os.Args[0] == "" {
-		fmt.Println("provide folder as argument and prefix argument with option flags.")
+	if len(flag.Args()) == 0 {
+		log.Println("provide folder as argument and prefix argument with option flags.")
 		return
 	}
 
-	var folderLocation string = os.Args[0]
+	var folderLocation = flag.Args()[0]
 	split.SplitFolder(options, folderLocation)
 
 }
-
