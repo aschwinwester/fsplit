@@ -7,6 +7,7 @@ import (
 	"log"
 	"io"
 	"path/filepath"
+	"strings"
 )
 
 // byDatTime implements sort.Interface.
@@ -33,12 +34,16 @@ func SplitFolder(options Options, folderLocation string) ([]os.FileInfo, error) 
 	}
 	sort.Sort(byDateTime(fileInfos))
 
+	var prevFileInfo os.FileInfo = nil
+
 	for _, fileInfo := range fileInfos {
 		if fileInfo.IsDir() {
 			continue
 		}
 
-		toFolderName := filepath.Join(options.Folder, fileInfo.ModTime().Format("2006-01-02"))
+
+
+		toFolderName := determineToFolder(fileInfo, prevFileInfo, options)
 		_, err := findOrCreateFolder(toFolderName, options)
 		if err != nil {
 			log.Printf("Not create folder %s for error %s", toFolderName, err.Error())
@@ -60,6 +65,7 @@ func SplitFolder(options Options, folderLocation string) ([]os.FileInfo, error) 
 			log.Printf("Error chaning file %s for error: %s", outputFileName, err)
 			return []os.FileInfo{}, err
 		}
+		prevFileInfo = fileInfo
 
 	}
 	return []os.FileInfo{}, nil
@@ -124,6 +130,39 @@ func findOrCreateFolder(folderName string, options Options) (os.FileInfo, error)
 	log.Printf("Folder %s created with permission 777", folderName)
 	return fileInfo, nil
 
+}
 
+func determineToFolder(fileInfo os.FileInfo, prevFileInfo os.FileInfo, options Options) string {
 
+	var dateAsString = fileInfo.ModTime().Format("2006-01-02")
+	var possibleFolder = dateAsString + postfix(fileInfo.ModTime().Hour())
+	_, err := os.Stat(filepath.Join(options.Folder, possibleFolder))
+	if err == nil {
+		dateAsString = possibleFolder
+	} else {
+
+		// only for same date
+		if prevFileInfo != nil && strings.Compare(dateAsString,prevFileInfo.ModTime().Format("2006-01-02")) == 0 {
+			hours :=fileInfo.ModTime().Hour()
+			previousHours := prevFileInfo.ModTime().Hour()
+
+			if (hours - previousHours) >= options.Hours {
+				log.Printf("Hours %d and previous hours %d. Adding postfix to date.", hours, previousHours)
+				dateAsString = dateAsString + postfix(hours)
+			}
+		}
+	}
+
+	toFolderName := filepath.Join(options.Folder, dateAsString)
+	return toFolderName
+}
+
+func postfix(hours int) string {
+	if hours >= 0 && hours <=12 {
+		return "-ochtend"
+	}
+	if hours >12 && hours <=18 {
+		return "-middag"
+	}
+	return "-avond"
 }
